@@ -7,7 +7,7 @@ This research project will analyze pro- and anti-LGBTQ+ legislation from the US 
 
 ## Data
 
-I will use an automated web scraping process to gather all the data, to save time from downloading all the data by hand. The text data will come from the [Freedom for All American Legislative Tracker](https://freedomforallamericans.org/legislative-tracker/). All the legislation is linked to [Billtrack50](https://www.billtrack50.com/) which should streamline the scraping process. There are various metadata (state of bill, date of bill, etc.) associated with the legislation that will be collected and may be used in the analysis. All legislation will be tagged with location, whether the bill is pro- or anti-LGBTQ+, and potentially tagged for topic, i.e. Trans rights, sports, education, marriage, adoption, etc.
+I will use an automated web scraping process to gather all the data, to save time from downloading all the data by hand. The text data will come from the [Freedom for All American Legislative Tracker](https://freedomforallamericans.org/legislative-tracker/). All the legislation is linked to [BillTrack50](https://www.billtrack50.com/) which should streamline the scraping process. There are various metadata (state of bill, date of bill, etc.) associated with the legislation that will be collected and may be used in the analysis. All legislation will be tagged with location, whether the bill is pro- or anti-LGBTQ+, and potentially tagged for topic, i.e. Trans rights, sports, education, marriage, adoption, etc.
 
 
 ## Analysis
