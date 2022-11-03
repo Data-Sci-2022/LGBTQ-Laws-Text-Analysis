@@ -1,0 +1,47 @@
+---
+title: "Data Sample"
+date: "2022-11-03"
+output:
+  github_document:
+    toc: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r load_packages}
+library(tidyverse)
+library(rvest)
+```
+
+Save the webpage html for easier access in following codes:
+
+```{r save_equaldex_html}
+Equaldex <- read_html("https://www.equaldex.com/equality-index/united-states")
+```
+
+Scrape the table and save as a tibble.
+
+```{r equaldex_table}
+Equaldex_df <- Equaldex %>% 
+  html_element(xpath ='//*[@id="content"]/div[3]/table') %>% 
+  html_table()
+head(Equaldex_df)
+```
+
+Save the webpage html for easier access in following codes:
+
+```{r save_map_html}
+MAP <- read_html("https://www.lgbtmap.org/equality-maps")
+```
+
+Scrape the table and save as a tibble.
+
+```{r map_table}
+MAP_df <- MAP %>% 
+  html_element(xpath = '//*[@id="map-4"]/div/table') %>% 
+  html_table()
+head(MAP_df)
+```
