@@ -130,10 +130,10 @@ Get filepath to work universally
 
 ```{r loading_files}
 # pro
-pro_files <- list.files(path = '/Users/mackcampbell/Desktop/LGBTQ-Laws-Text-Analysis/data/State-Bill-csvs/Pro/', pattern = '.csv', full.names = T)
+pro_files <- list.files(path = 'data/State-Bill-csvs/Pro/', pattern = '.csv', full.names = T)
 
 # anti
-anti_files <- list.files(path = '/Users/mackcampbell/Desktop/LGBTQ-Laws-Text-Analysis/data/State-Bill-csvs/Anti/', pattern = '.csv', full.names = T)
+anti_files <- list.files(path = 'data/State-Bill-csvs/Anti/', pattern = '.csv', full.names = T)
 ```
 
 
@@ -204,6 +204,40 @@ billtrack_df3 <- tibble('BillTrack.Link' = billtrack_urls[191:285]) %>%
 ```
 
 
+
+```{r}
+# billtrack_urls[1] %>% 
+# "https://www.billtrack50.com/billdetail/1302835" %>% 
+"https://www.billtrack50.com/billdetail/1410619" %>% 
+  read_html() %>% 
+  # the links to each state information is housed in a table
+  html_element('#docs-table') %>% 
+  html_table() %>% 
+  filter(startsWith(`Document Type`, "Bill"),
+         endsWith(`Source Location`, "pdf")) %>% 
+  # slice(1) %>%
+  pull(`Source Location`)
+
+tibble(BillTrack.Link = c("https://www.billtrack50.com/billdetail/1410619",
+                          "https://www.billtrack50.com/billdetail/1302835",
+                          "https://www.billtrack50.com/billdetail/1417722")) %>% 
+  mutate(links = map(BillTrack.Link,
+                              ~ .x %>% 
+                                read_html() %>% 
+                                # the links to each state information is housed in a table
+                                html_element('#docs-table') %>% 
+                                html_table() %>% 
+                                filter(startsWith(`Document Type`, "Bill"),
+                                       endsWith(`Source Location`, "pdf")) %>% 
+                                # slice(1) %>%
+                                pull(`Source Location`)
+  ),
+  num_links = map_int(links, length),
+  first_link = map_chr(links, 1)
+  )
+```
+
+
 Join them into 1 df:
 
 ```{r billtrack_tibble}
@@ -228,7 +262,10 @@ head(billtrack_df)
 ```{r billtrack_tibble_to_csv}
 # saving the tibble into a csv to avoid future scraping
 billtrack_df %>% 
-  write.csv('/Users/mackcampbell/Desktop/LGBTQ-Laws-Text-Analysis/data/billtrackdf.csv', row.names = T)
+  write.csv('data/billtrackdf.csv', row.names = T)
+if (!exists("billtrack_df")) {
+  billtrack_df <- read.csv("data/billtrackdf.csv")
+}
 ```
 
 
@@ -257,10 +294,21 @@ clean_pdf <- function(file) {
     # remove inner white space
     str_squish() %>% 
     # remove line numbers
-    str_remove("^\\d+ ")}  
+    str_remove("^\\d+ ")
+}  
 ```
 
 Once again this is too large to run at once, chunk it and try again. The process proved to be finnicky, so I chunked it small to be able to diagnose issues easier.
+
+```{r}
+##Put state_pdf_df rows into chunks of 50ish
+state_pdf_df %>% 
+  mutate(num = row_number(),
+         chunk = (num+1) %/% 50 + 1,
+         .before=1)
+```
+
+
 
 ```{r pdf_gathering, eval=FALSE}
 # running df through the extracting and cleaning function
@@ -322,6 +370,85 @@ state_text_df16 <- tibble('BillTrack.Link' = state_pdf_df$BillTrack.Link[751:792
 ```
 
 
+```{r}
+state_text_df1 %>% 
+  filter(str_detect(map(Bill.Text, 1), "HAWAW"))
+  slice_sample(n=20) %>% 
+  pull(Bill.Text) %>% 
+  str(vec.len=3)
+```
+
+
+```{r}
+all_laws %>% 
+  select(BillTrack.Link, Last.Action)
+billtrack_df
+```
+
+```{r}
+state_pdf_df %>% 
+  filter(endsWith(State.Link, "pdf")) %>% 
+  nrow()
+state_pdf_df %>% 
+  filter(endsWith(tolower(State.Link), "pdf")) %>% 
+  nrow()
+state_pdf_df %>% 
+  filter(!endsWith(tolower(State.Link), "pdf")) %>% 
+  pull(State.Link)
+state_pdf_df %>% 
+  filter(endsWith(tolower(State.Link), "pdf"),
+         !endsWith(tolower(State.Link), ".pdf")) %>% 
+  nrow()
+state_pdf_df %>% 
+  filter(endsWith(tolower(State.Link), "pdf"),
+         !endsWith(tolower(State.Link), ".pdf")) %>% 
+  count(State)
+state_pdf_df %>% 
+  filter(State=="Minnesota")
+```
+
+```{r}
+state_pdf_df %>% 
+  filter(endsWith(State.Link, ".pdf"),
+         State=="Virginia")
+
+state_pdf_df %>% 
+  filter(endsWith(tolower(State.Link), "pdf"),
+         State!="Virginia")
+```
+
+
+
+```{r}
+state_pdf_df %>% 
+  filter(BillTrack.Link=="https://www.billtrack50.com/billdetail/1417722") %>% 
+  pull(State.Link)
+state_pdf_df %>% 
+  filter(BillTrack.Link=="https://www.billtrack50.com/billdetail/1417722") %>% 
+  mutate(Bill.Text = map(State.Link, clean_pdf))
+```
+
+
+```{r}
+state_pdf_df %>% 
+  filter(duplicated(BillTrack.Link))
+state_pdf_df %>% 
+  count(BillTrack.Link, sort=TRUE) %>% 
+  count(n, name="nn")
+state_pdf_df %>% 
+  group_by(BillTrack.Link) %>% 
+  filter(n()==4) %>% 
+  relocate(State, .before=1)
+```
+
+
+
+```{r}
+state_pdf_df %>% 
+  filter(State=="Hawaii")
+```
+
+
 ```{r statebill_tibble, eval=FALSE}
 # creating one tibble
 state_text_df <- tibble('BillTrack.Link' = c(state_text_df1$BillTrack.Link, state_text_df2$BillTrack.Link, state_text_df3$BillTrack.Link, state_text_df4$BillTrack.Link, state_text_df5$BillTrack.Link, state_text_df6$BillTrack.Link, state_text_df7$BillTrack.Link, state_text_df8$BillTrack.Link, state_text_df9$BillTrack.Link, state_text_df10$BillTrack.Link, state_text_df11$BillTrack.Link, state_text_df12$BillTrack.Link, state_text_df13$BillTrack.Link, state_text_df14$BillTrack.Link, state_text_df15$BillTrack.Link, state_text_df16$BillTrack.Link), 
@@ -335,5 +462,5 @@ state_text_df <- tibble('BillTrack.Link' = c(state_text_df1$BillTrack.Link, stat
 ```{r state_text_tibble_to_csv, eval=FALSE}
 # saving the tibble into a csv to avoid future scraping
 billtrack_df %>% 
-  write.csv('/Users/mackcampbell/Desktop/LGBTQ-Laws-Text-Analysis/data/statetextdf.csv', row.names = T)
+  write.csv('data/statetextdf.csv', row.names = T)
 ```
