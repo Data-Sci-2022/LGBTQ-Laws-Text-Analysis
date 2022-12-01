@@ -27,3 +27,16 @@ Based on a conversation with Lauren Collister from the Pitt Library, I am planni
 I have wrangled with the table data and gotten it almost into its final form. The MAP data took more to wrangle: I had to split each column, and pivot wider to separate information on Gender Identity and Sexual Orientation. Both tables had US territories included, so I did an anti-join on state names to filter out any non-state territories, as these will not have any correspoding legislation. I will preserve raw tables as well as the table that I have manipulated to fit my project.
 
 Updated data sample with wrangling on tables and work with PDFs.
+
+## Third Progress Report
+### 12.01.2022
+
+Added licensing information.
+
+Dan created a JavaScript code that scraped all necessary data from Freedom For All American's website. Each state's bill information was saved as a separate csv which I then loaded into R and created dataframes to work with.
+
+The BillTrack site for each bill had a direct link to the legislation PDF so I was able to access these URLs through BillTrack without having to navigate and scrape from 39 different state's websites. I scraped all the links to the state's websites and filtered out any non-PDF links, leaving just links that can be fed directly into `pdftext()` and the function I created to clean the PDFs.
+
+I have run into some issue accessing the text from the PDFs, but I have been able to get 50% of the text converted and ready to manipulate. All other code is created, I just need to troubleshoot and find solutions to access the PDFs.
+
+I have began to compile all final parts of code into one final document, final_guide, that walks step by step through all the code I've run to collect and manipulate the data.
