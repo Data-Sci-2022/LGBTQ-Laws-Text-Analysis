@@ -1,0 +1,667 @@
+---
+title: "LGBTQ Laws Text Analysis"
+subtitle: "Data Collection and Manipulation"
+author: "Mack Campbell"
+data: "December 15, 2022"
+output: 
+  github_document:
+  toc: TRUE 
+---
+
+```{r setup, include=FALSE}
+knitr::ops_chunk$set(echo = TRUE, include = TRUE, comment = NA, fig.path = 'data_visualization/')
+library(tidyverse)
+library(rvest)
+library(pdftools)
+library(tidytext)
+```
+
+# Creating Miscellaneous Dataframes
+
+```{r state_abbrs}
+# Equaldex and MAP data have data on more than the 50 states, so this will be used to filter and cross-reference state name and abbreviations.
+States <- tibble(State = state.name, State.Abbr = state.abb)
+States
+```
+
+# Web Scraping / Data Collection
+
+## Table Scraping and Manipulation
+
+### Equaldex
+
+Information about Equaldex and link to site here
+
+```{r equaldex_scrape}
+Equaldex_url <- read_html("https://www.equaldex.com/equality-index/united-states")
+
+# extracting the raw data
+Equaldex_raw <- Equaldex_url %>% 
+  html_element(xpath ='//*[@id="content"]/div[3]/table') %>% 
+  html_table()
+```
+
+
+```{r equaldex_manipulation}
+# extracting and manipulating the data
+# index is on a scale out of 100
+Equaldex_df <- Equaldex_url %>% 
+  html_element(xpath ='//*[@id="content"]/div[3]/table') %>% 
+  html_table() %>% 
+  # separating column data
+  separate('State and Territory', into = c('Rank', 'State'), sep = "\\. ", convert = T) %>% 
+  separate('Equality Index', into = c('Equality_Index', 'Max1'), convert = T) %>% 
+  separate('Legal Index', into = c('Legal_Index', 'Max2'), convert = T) %>% 
+  separate('Public Opinion Index', into = c('Public_Opinion_Index', 'Max3'), convert = T) %>% 
+  #removing unnecessary columns 
+  select(-c(Max1, Max2, Max3)) %>%  
+  semi_join(States, by = 'State')
+
+Equaldex_df
+```
+
+### MAP
+
+Information about MAP and link to site here
+
+```{r MAP_scrape}
+MAP_url <- read_html("https://www.lgbtmap.org/equality-maps")
+
+# extracting the raw data
+MAP_raw <- MAP_url %>% 
+  html_element(xpath = '//*[@id="map-4"]/div/table') %>% 
+  html_table()
+```
+
+
+```{r MAP_manipulation1}
+# extracting and manipulating
+MAP_df <- MAP_url %>% 
+  html_element(xpath = '//*[@id="map-4"]/div/table') %>% 
+  html_table(header = T) %>% # works to rename, how to make it proper titles, how to add missing titles?
+  rename('Alpha_Rank' = 1, 'Measured_Category' = 3) %>%  #renaming empty columns
+  select(-Alpha_Rank) %>% #removes unnecessary initial column that numbered state positions
+  semi_join(States, by = 'State') %>% 
+  #separating the score and the scale
+  separate('Relationship andParental Recognition', into = c('Relationship_and_Parental_Recognition', 'Relationship_and_Parental_Recognition_Scale'), sep = '/', convert = T) %>% 
+  separate('Non–Discrimination', into = c('Non-Discrimination', 'Non-Discrimination_Scale'), sep = '/', convert = T) %>% 
+  separate('Religious Exemption Laws', into = c('Religious_Exemption_Laws', 'Religious_Exemption_Laws_Scale'), sep = '/', convert = T) %>% 
+  separate('LGBT Youth', into = c('LGBT_Youth', 'LGBT_Youth_Scale'), sep = '/', convert = T) %>% 
+  separate('Healthcare', into = c('Healthcare', 'Healthcare_Scale'), sep = '/', convert = T) %>% 
+  separate('CriminalJustice', into = c('Criminal_Justice', 'Criminal_Justice_Scale'), sep = '/', convert = T) %>% 
+  separate('IdentityDocuments', into = c('Identity_Documents', 'Identity_Documents_Scale'), sep = '/', convert = T) %>% 
+  rename('Sexual_Orientation_Policy_Tally' = 'Sexual Orientation Policy Tally', 'Gender_Identity_Policy_Tally' = 'Gender Identity Policy Tally', 'Overall_Tally'= 'Overall Tally')
+# not all states have current legislation, so i will eventually filter out those that do not have current legislation as there is no ling data to look at for them
+```
+
+
+```{r MAP_manipulation2}
+# Pivoting wider to separate gender identity and sexual orientation and cleaning up columns.
+# vector types are a mess in the columns
+MAP_df <- MAP_df %>% 
+  pivot_wider(names_from = Measured_Category, names_sep = "_", values_from = Relationship_and_Parental_Recognition:Identity_Documents_Scale) %>% 
+  select(-c(Identity_Documents_SO, Identity_Documents_Scale_SO)) %>%  # removing unnecessary columns
+  # rearrange columns
+  relocate('State', 'Relationship_and_Parental_Recognition_GI', 'Relationship_and_Parental_Recognition_Scale_GI','Relationship_and_Parental_Recognition_SO', 'Relationship_and_Parental_Recognition_Scale_SO', 'Non-Discrimination_GI', 'Non-Discrimination_Scale_GI', 'Non-Discrimination_SO', 'Non-Discrimination_Scale_SO', 'Religious_Exemption_Laws_GI', 'Religious_Exemption_Laws_Scale_GI','Religious_Exemption_Laws_SO', 'Religious_Exemption_Laws_Scale_SO', 'LGBT_Youth_GI', 'LGBT_Youth_Scale_GI', 'LGBT_Youth_SO', 'LGBT_Youth_Scale_SO', 'Healthcare_GI', 'Healthcare_Scale_GI', 'Healthcare_SO', 'Healthcare_Scale_SO', 'Criminal_Justice_GI', 'Criminal_Justice_Scale_GI', 'Criminal_Justice_SO', 'Criminal_Justice_Scale_SO', 'Identity_Documents_GI', 'Identity_Documents_Scale_GI', ends_with('Tally'))
+head(MAP_df)
+```
+
+### Comparing MAP and Equaldex
+
+Statistical test run
+
+Create a df that has state, MAP/Equaldex total score, (and pro/anti legislation count. - add this after importing billtrack info)
+
+```{r correlation_test}
+State_Ranks_df <- Equaldex_df %>% 
+  select(State, Total_Index) %>% 
+  left_join(MAP_df %>% select(State, Overall_Tally),
+            "State")
+cor(State_Ranks_df$Total_Index, State_Ranks_df$Overall_Tally) # there is a very high correlation when states are in the same order
+```
+
+## Freedom for All Americans
+
+The Freedom for all Americans' website uses a widget for the law data I am looking for, so Dan created a JavaScript code that pulled all necessary information and saved it as separate CSV files.
+
+Dan got a working JavaScript code to pull all the data into CSV files from the JS tables.
+
+Check how to format this.
+
+
+/*
+	Download State Tables from https://freedomforallamericans.org/legislative-tracker/
+	
+	To use:
+	1. Load https://freedomforallamericans.org/legislative-tracker/
+	2. Copy & paste the entire script text into your browser's console
+	3. Click a state on the map. In the console, hit <enter>/<return> to run this code
+	4. Click another state, use the up arrow to load this script text again, rinse, and repeat
+​
+	90% of this code comes from https://www.geeksforgeeks.org/how-to-export-html-table-to-csv-using-javascript/
+	Adapted by Dan Villarreal
+
+```{}
+​
+function tableToCSV(node) {
+	// State name
+	var sName = node.querySelector(".grid-head").innerText;
+	var end = sName.search(/ \(/g);
+	var sName = sName.slice(0, end);
+	
+	// Variable to store the final csv data
+	var csv_data = [];
+​
+	// Get each row data
+	var rows = node.querySelectorAll('.tableWrapper > table tr');
+	for (var i = 0; i < rows.length; i++) {
+​
+		// Get each column data
+		var cols = rows[i].querySelectorAll('td,th');
+​
+		// Stores each csv row data
+		var csvrow = [];
+		for (var j = 0; j < cols.length; j++) {
+			// Get data from each cell & push it to csvrow
+			// First cell in first row: "Link"
+			if (i == 0 && j == 0) {
+				csvrow.push('Link')
+			// First column: get link
+			} else if (j == 0) {
+				csvrow.push(cols[j].querySelector('a').href);				
+			// Otherwise: get text
+			} else {
+				csvrow.push('"' + cols[j].innerText + '"');				
+			} 
+		}
+​
+		// Combine each column value with comma
+		csv_data.push(csvrow.join(","));
+	}
+​
+	// Combine each row data with new line character
+	csv_data = csv_data.join('\n');
+​
+	// Call this function to download csv file
+	downloadCSVFile(csv_data, sName);
+}
+​
+function downloadCSVFile(csv_data, csv_name) {
+​
+	// Create CSV file object and feed
+	// our csv_data into it
+	CSVFile = new Blob([csv_data], {
+		type: "text/csv"
+	});
+​
+	// Create to temporary link to initiate
+	// download process
+	var temp_link = document.createElement('a');
+​
+	// Download csv file
+	temp_link.download = csv_name;
+	var url = window.URL.createObjectURL(CSVFile);
+	temp_link.href = url;
+​
+	// This link should not be displayed
+	temp_link.style.display = "none";
+	document.body.appendChild(temp_link);
+​
+	// Automatically click the link to
+	// trigger download
+	temp_link.click();
+	document.body.removeChild(temp_link);
+}
+​
+var node = document.querySelector("#BT50MapWidget");
+tableToCSV(node);
+```
+
+
+```{r loading_files}
+# pro
+pro_files <- list.files(path = 'data/State-Bill-csvs/Pro/', pattern = '.csv', full.names = T)
+
+# anti
+anti_files <- list.files(path = 'data/State-Bill-csvs/Anti/', pattern = '.csv', full.names = T)
+```
+
+
+```{r pro_laws_tibble}
+# message = F
+
+pro_laws <- pro_files %>% 
+  map_dfr(., read_csv, name_repair = 'universal') %>% 
+  select(-c(Position)) %>% # drop position, it is a blank column
+  rename('BillTrack.Link' = 'Link', 'State.Abbr' = 'State') %>%  # will be adding another bill link to this tibble, adding in state names too
+  mutate('Action.Year' = str_extract(Action.Date, '\\d\\d\\d\\d$'), .after = 'Action.Date') %>% 
+  mutate('Bill.Stance' = 'Pro', .after = BillTrack.Link)
+head(pro_laws)
+```
+
+
+```{r anti_laws_tibble}
+anti_laws <- anti_files %>% 
+  map_dfr(., read_csv, name_repair = 'universal') %>% 
+  select(-c(Position)) %>% # drop position, it is a blank column
+  rename('BillTrack.Link' = 'Link', 'State.Abbr' = 'State') %>%  # will be adding another bill link to this tibble, adding in state names too
+  mutate('Action.Year' = str_extract(Action.Date, '\\d\\d\\d\\d$'), .after = 'Action.Date')%>% 
+  mutate('Bill.Stance' = 'Anti', .after = BillTrack.Link)
+head(anti_laws)
+```
+
+Join them together and add full state name.
+
+```{r all_laws_tibble}
+all_laws <- full_join(anti_laws, pro_laws) %>% 
+  left_join(States, by = 'State.Abbr') %>% 
+  relocate(State, .after = State.Abbr)
+head(all_laws)
+
+all_laws %>% 
+  group_by(Bill.Stance) %>% 
+  summarize(Total = n())
+```
+
+## BillTrack
+
+EDIT THE BILLTRACK STUFF, MAKE SURE TO MENTION THAT THEY NEED PERMISSION TO RUN THIS
+
+```{r billtrack_urls}
+# create a character vector of all urls to pull data from
+billtrack_urls <- c(anti_laws$BillTrack.Link, pro_laws$BillTrack.Link)
+```
+
+It is too big to run as one, so I will chunk it up.
+
+```{r billtrack_scrape}
+billtrack_df1 <- tibble('BillTrack.Link' = billtrack_urls[1:95]) %>% 
+  mutate('Bill.PDF' = BillTrack.Link %>% map(~ .x %>% 
+                                          read_html() %>% 
+                                          # the links to each state information is housed in a table
+                                          html_element('#docs-table') %>% 
+                                          # returns a character vector/list in each column
+                                          html_table() %>% 
+                                            filter(grepl('Bill(Text)?', `Document Type`), 
+                                                   grepl('pdf', `Source Location`, ignore.case = T)) %>% 
+                                          pull(`Source Location`))) 
+
+billtrack_df2 <- tibble('BillTrack.Link' = billtrack_urls[96:190]) %>% 
+  mutate('Bill.PDF' = BillTrack.Link %>% map(~ .x %>% 
+                                          read_html() %>% 
+                                          html_element('#docs-table') %>% 
+                                          html_table() %>% 
+                                            filter(grepl('Bill(Text)?', `Document Type`), 
+                                                   grepl('pdf', `Source Location`, ignore.case = T)) %>% 
+                                          pull(`Source Location`)))
+
+billtrack_df3 <- tibble('BillTrack.Link' = billtrack_urls[191:285]) %>% 
+  mutate('Bill.PDF' = BillTrack.Link %>% map(~ .x %>% 
+                                          read_html() %>% 
+                                          html_element('#docs-table') %>% 
+                                          html_table() %>% 
+                                            filter(grepl('Bill(Text)?', `Document Type`), 
+                                                   grepl('pdf', `Source Location`, ignore.case = T)) %>% 
+                                          pull(`Source Location`)))
+```
+
+Maybe just pull first link per billtrack link?
+
+Join them into 1 df:
+
+```{r billtrack_tibble}
+# creating one tibble
+billtrack_df <- tibble('BillTrack.Link' = c(billtrack_df1$BillTrack.Link, billtrack_df2$BillTrack.Link, billtrack_df3$BillTrack.Link), 'State.Link' = c(billtrack_df1$Bill.PDF, billtrack_df2$Bill.PDF, billtrack_df3$Bill.PDF))
+```
+
+Unnest individual URLs, then filter for only PDFs.
+
+```{r billtrack_tibble_manipulation}
+billtrack_df <- billtrack_df %>% 
+  # generates a row per URL
+  unnest(cols = State.Link, keep_empty = T) %>% 
+  # some state URLs are listed twice, remove duplicates
+  filter(!duplicated(State.Link))
+billtrack_df
+```
+
+
+```{r billtrack_tibble_to_csv}
+# saving the tibble into a csv to avoid future scraping
+billtrack_df %>% 
+  write.csv('data/billtrackdf.csv', row.names = T)
+```
+
+
+```{r read_billtrack_csv}
+# read in billtrack_df without scraping
+if (!exists("billtrack_df")) {
+  billtrack_df <- read_csv('data/billtrackdf.csv')
+}
+```
+
+Reformatted Virginia - link was formatted wrong, +hil removed.
+Tested one link from each state
+
+```{r state_pdf}
+# combine links and state info...bare bones for now
+state_pdf_df <- billtrack_df %>% 
+  left_join(all_laws, by = 'BillTrack.Link') %>% 
+  select(BillTrack.Link, Bill.Stance, State.Link, State) %>% 
+  # Delaware returned an NA
+  filter(!is.na(State.Link)) %>% 
+  # some non-pdfs slipped through
+  filter(grepl('pdf$', State.Link, ignore.case = T)) %>% 
+  # links for Virginia are formatted incorrectly (contains the string "+hil")
+  mutate(State.Link = State.Link %>% map_chr( ~.x %>% 
+    str_remove('\\+hil')))
+```
+
+# Working with PDFs
+
+Instructions pulled from: https://data.library.virginia.edu/reading-pdf-files-into-r-for-text-mining/
+
+```{r pdf_clean_function}
+# create a function to extract and tidy up the pdfs
+clean_pdf <- function(file) {
+  file %>% 
+    pdf_text() %>% 
+    str_split("[\\r\\n]+") %>%
+    # remove pagination
+    flatten_chr() %>%  
+    # trim leading white space
+    str_trim() %>% 
+    # remove inner white space
+    str_squish() %>% 
+    # remove line numbers
+    str_remove("^\\d+")
+  }  
+```
+
+Once again this is too large to run at once, chunk it and try again. The process proved to be finnicky, so I chunked it small to be able to diagnose issues easier.
+
+```{r pdf_gathering, eval=FALSE}
+# running df through the extracting and cleaning function
+state_text_df1 <- tibble('BillTrack.Link' = state_pdf_df$BillTrack.Link[1:50], 'Bill.Stance' = state_pdf_df$Bill.Stance[1:50], 'State.Link' = state_pdf_df$State.Link[1:50], 'State' = state_pdf_df$State[1:50]) %>% 
+  mutate('Bill.Text' = map(State.Link, clean_pdf))
+
+# error >
+state_text_df2 <- tibble('BillTrack.Link' = state_pdf_df$BillTrack.Link[51:100], 'Bill.Stance' = state_pdf_df$Bill.Stance[51:100], 'State.Link' = state_pdf_df$State.Link[51:100], 'State' = state_pdf_df$State[51:100]) %>% 
+  mutate('Bill.Text' = map(State.Link, clean_pdf))
+
+# error >
+state_text_df3 <- tibble('BillTrack.Link' = state_pdf_df$BillTrack.Link[101:150], 'Bill.Stance' = state_pdf_df$Bill.Stance[101:150], 'State.Link' = state_pdf_df$State.Link[101:150], 'State' = state_pdf_df$State[101:150]) %>% 
+  mutate('Bill.Text' = map(State.Link, clean_pdf))
+
+state_text_df4 <- tibble('BillTrack.Link' = state_pdf_df$BillTrack.Link[151:200], 'Bill.Stance' = state_pdf_df$Bill.Stance[151:200], 'State.Link' = state_pdf_df$State.Link[151:200], 'State' = state_pdf_df$State[151:200]) %>% 
+  mutate('Bill.Text' = map(State.Link, clean_pdf))
+
+state_text_df5 <- tibble('BillTrack.Link' = state_pdf_df$BillTrack.Link[201:250], 'Bill.Stance' = state_pdf_df$Bill.Stance[201:250], 'State.Link' = state_pdf_df$State.Link[201:250], 'State' = state_pdf_df$State[201:250]) %>% 
+  mutate('Bill.Text' = map(State.Link, clean_pdf))
+
+state_text_df6 <- tibble('BillTrack.Link' = state_pdf_df$BillTrack.Link[251:300], 'Bill.Stance' = state_pdf_df$Bill.Stance[251:300], 'State.Link' = state_pdf_df$State.Link[251:300], 'State' = state_pdf_df$State[251:300]) %>% 
+  mutate('Bill.Text' = map(State.Link, clean_pdf))
+
+# error >
+state_text_df7 <- tibble('BillTrack.Link' = state_pdf_df$BillTrack.Link[301:350], 'Bill.Stance' = state_pdf_df$Bill.Stance[301:350], 'State.Link' = state_pdf_df$State.Link[301:350], 'State' = state_pdf_df$State[301:350]) %>% 
+  mutate('Bill.Text' = map(State.Link, clean_pdf))
+
+# error >
+state_text_df8 <- tibble('BillTrack.Link' = state_pdf_df$BillTrack.Link[351:400], 'Bill.Stance' = state_pdf_df$Bill.Stance[351:400], 'State.Link' = state_pdf_df$State.Link[351:400], 'State' = state_pdf_df$State[351:400]) %>% 
+  mutate('Bill.Text' = map(State.Link, clean_pdf))
+
+state_text_df9 <- tibble('BillTrack.Link' = state_pdf_df$BillTrack.Link[401:417], 'Bill.Stance' = state_pdf_df$Bill.Stance[401:417], 'State.Link' = state_pdf_df$State.Link[401:417], 'State' = state_pdf_df$State[401:417]) %>% 
+  mutate('Bill.Text' = map(State.Link, clean_pdf))
+```
+
+Not all pdfs scraped properly, I am going to test with what I have now.
+
+```{r statebill_tibble, eval=FALSE}
+# creating one tibble
+state_text_df <- tibble('BillTrack.Link' = c(state_text_df1$BillTrack.Link, state_text_df4$BillTrack.Link, state_text_df5$BillTrack.Link, state_text_df6$BillTrack.Link, state_text_df9$BillTrack.Link), 
+                        'Bill.Stance' = c(state_text_df1$Bill.Stance, state_text_df4$Bill.Stance, state_text_df5$Bill.Stance, state_text_df6$Bill.Stance, state_text_df9$Bill.Stance), 
+                        'State.Link' = c(state_text_df1$State.Link, state_text_df4$State.Link, state_text_df5$State.Link, state_text_df6$State.Link, state_text_df9$State.Link), 
+                        'State' = c(state_text_df1$State, state_text_df4$State, state_text_df5$State, state_text_df6$State, state_text_df9$State), 
+                        'Bill.Text' = c(state_text_df1$Bill.Text, state_text_df4$Bill.Text, state_text_df5$Bill.Text, state_text_df6$Bill.Text, state_text_df9$Bill.Text))
+```
+
+# Text Analysis
+
+## Filtering the Text
+
+```{r filtering_text}
+# Bill.Text is lines of text per legislation.
+state_text_df <- state_text_df %>% 
+  unnest(Bill.Text) %>% 
+  # filter out blank lines
+  filter(!Bill.Text =="") %>% 
+  # filter out lines with just digits
+  filter(!grepl('\\d+-\\d+', Bill.Text)) %>%
+  # filter out page numbers
+  filter(!grepl('Page \\d+', Bill.Text, ignore.case = T))
+```
+
+
+## Tokenizing the text
+
+```{r stop_words_and_enable}
+data("stop_words")
+
+stop_words %>% 
+  group_by(lexicon) %>% 
+  summarize(length(word))
+
+# snowball = 174, onix = 404, SMART = 571
+
+stop_words %>% 
+  pull(word) %>% 
+  n_distinct()
+
+# all lexicons = 728
+
+# load in ENABLE list as a tibble to filter out non-words
+ENABLE <- tibble(word = read.delim("http://norvig.com/ngrams/enable1.txt")) %>% 
+  unnest(word, names_sep = NULL)
+```
+
+
+```{r tokenizing_text}
+# unigrams
+state_text_df_unigram <- state_text_df %>% 
+  unnest_tokens(Bill1gram, Bill.Text, token = "words", to_lower = T, drop = F) %>% 
+  # filter out stop words
+  anti_join(stop_words %>% 
+              filter(lexicon=="onix"), by = c("Bill1gram" = "word")) %>% # moving to onix because of 'shall'
+  # filter out words with character length of 1
+  filter(!grepl('^.$', Bill1gram)) %>% 
+  # filter out section and subsection, specialized words, but high frequency with low meaning in legalese
+  filter(!grepl('^(sub)?section$', Bill1gram)) %>% 
+  # filtering out words non in ENABLE list
+  semi_join(ENABLE, by = c("Bill1gram" = "aa"))
+
+# bigrams
+state_text_df_bigram <- state_text_df %>% 
+  unnest_tokens(Bill2gram, Bill.Text, token = "ngrams", n = 2, to_lower = T, drop = F) %>% 
+  # filtering out NAs created from text-initial words
+  filter(!Bill2gram == 'NA')
+
+# trigrams
+state_text_df_trigram <- state_text_df %>% 
+  unnest_tokens(Bill3gram, Bill.Text, token = "ngrams", n = 3, to_lower = T, drop = F) %>% 
+  # filtering out NAs created from text-initial words
+  filter(!Bill3gram == 'NA')
+```
+
+
+```{r state_text_tibble_to_csv, eval=FALSE}
+# saving the tibble into a csv to avoid future scraping
+
+# save after finalizing filtering out unnecessary stuff
+# large file! 11.7MB
+state_text_df %>% 
+  write.csv('data/statetextdf.csv', row.names = T)
+```
+
+
+```{r read_state_text_tibble_csv}
+# read in state_text_df without scraping
+if (!exists("state_text_df")) {
+  billtrack_df <- read_csv('data/statetextdf.csv')
+}
+```
+
+
+```{r unigram_frequency}
+# mean token frequency
+state_text_df_unigram %>% 
+  filter(Bill.Stance == 'Anti') %>% 
+  group_by(Bill1gram) %>% 
+  summarize(Token_mean = length(Bill1gram)/n_distinct(State.Link)) %>% 
+  arrange(desc(Token_mean))
+
+state_text_df_unigram %>% 
+  filter(Bill.Stance == 'Pro') %>% 
+  group_by(Bill1gram) %>% 
+  summarize(Token_mean = length(Bill1gram)/n_distinct(State.Link)) %>% 
+  arrange(desc(Token_mean))
+
+# raw token frequency
+state_text_df_unigram %>% 
+  filter(Bill.Stance == 'Anti') %>% 
+  count(Bill1gram, sort = T, name = 'Token_Count')
+
+state_text_df_unigram %>% 
+  filter(Bill.Stance == 'Pro') %>% 
+  count(Bill1gram, sort = T, name = 'Token_Count')
+```
+
+
+```{r bigram_frequency}
+state_text_df_bigram %>% 
+  filter(Bill.Stance == 'Anti') %>% 
+  count(Bill2gram, sort = T, name = 'Token_Count')
+
+state_text_df_bigram %>% 
+  filter(Bill.Stance == 'Pro') %>% 
+  count(Bill2gram, sort = T, name = 'Token_Count')
+```
+
+
+```{r trigram_frequency}
+state_text_df_trigram %>% 
+  filter(Bill.Stance == 'Anti') %>% 
+  count(Bill3gram, sort = T, name = 'Token_Count')
+
+state_text_df_trigram %>% 
+  filter(Bill.Stance == 'Pro') %>% 
+  count(Bill3gram, sort = T, name = 'Token_Count')
+```
+
+# Something Else
+
+```{r legislation_and_ranks}
+#state rank, number of legislation
+State_Law_Rank_df<- all_laws %>% 
+  group_by(State, Bill.Stance) %>% 
+  summarize(n = length(Bill.Number)) %>% 
+  # widen to show anti and pro side by side per state
+  pivot_wider(names_from = "Bill.Stance", values_from = 'n', values_fill = 0) %>% 
+  # renaming for clarification
+  rename('Anti.Laws' = Anti, 'Pro.Laws' = Pro) %>% 
+  # adding total legislation
+  mutate('All.Laws' = Anti.Laws + Pro.Laws) %>% 
+  # adding equaldex data
+  left_join(Equaldex_df, by = 'State') %>% 
+  # adding MAP data
+  left_join(MAP_df, by = 'State') %>% 
+  # selecting relevant columns to compare
+  select(c('Anti.Laws', 'Pro.Laws', 'All.Laws', 'Rank', 'Equality_Index', 'Overall_Tally')) %>% 
+  # renaming for clarification
+  rename('Equaldex_Index' = Equality_Index, 'MAP_Tally' = Overall_Tally, 'Equaldex_Rank' = Rank)
+head(State_Law_Rank_df)
+```
+
+```{r}
+# test for correlation between # of laws and rank
+cor(State_Law_Rank_df$All.Laws, State_Law_Rank_df$Equaldex_Index)
+
+# test for correlation between # of laws and rank
+cor(State_Law_Rank_df$Anti.Laws, State_Law_Rank_df$Equaldex_Index)
+
+# test for correlation between # of laws and rank
+cor(State_Law_Rank_df$Pro.Laws, State_Law_Rank_df$Equaldex_Index)
+```
+
+# Data Visualization
+
+```{r rank_and_law_correlation}
+State_Law_Rank_df %>% 
+  ggplot(aes(x = State_Law_Rank_df$Equaldex_Index, y = State_Law_Rank_df$All.Laws, label = State_Law_Rank_df$State)) +
+  geom_point(alpha = 0.3) +
+  geom_text(size = 3) +
+  geom_smooth(method = 'lm', formula = y ~ x, alpha = 0) +
+  labs(x = 'Equaldex Index', y = 'Current Legislation') +
+  ggtitle("State Equaldex Index and Current Legislation") +
+  theme_gray()
+```
+
+```{r}
+ggsave("legislation_index_graph.png", path = '/Users/mackcampbell/Library/CloudStorage/OneDrive-UniversityofPittsburgh/2022 - Fall/ling2340', width = 10, height = 7)
+```
+
+
+```{r unigram_plot_gender/sex}
+state_text_df_unigram %>% 
+  filter(Bill1gram %in% c("sex", "gender")) %>% 
+  group_by(State, Bill.Stance, Bill1gram) %>% 
+  summarize(Token_mean = length(Bill1gram)/n_distinct(State.Link)) %>% 
+  ggplot(aes(y = State, x = Token_mean, fill = Bill.Stance)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Token Frequency: 'gender' vs 'sex'") +
+  facet_grid(vars(Bill1gram))
+```
+
+
+
+```{r unigram_plot_orientation/identity}
+state_text_df_unigram %>% 
+  filter(Bill1gram %in% c('orientation', 'identity')) %>% 
+  group_by(State, Bill.Stance, Bill1gram) %>% 
+  summarize(Token_mean = length(Bill1gram)/n_distinct(State.Link)) %>% 
+  ggplot(aes(y = State, x = Token_mean, fill = Bill.Stance)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Token Frequency: 'orientation' and 'identity'") +
+  facet_grid(vars(Bill1gram))
+```
+
+
+
+```{r unigram_plot_children}
+state_text_df_unigram %>% 
+  filter(Bill1gram %in% c('child', 'children')) %>% 
+  group_by(State, Bill.Stance, Bill1gram) %>% 
+  summarize(Token_mean = length(Bill1gram)/n_distinct(State.Link)) %>% 
+  ggplot(aes(y = State, x = Token_mean, fill = Bill.Stance)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Token Frequency: 'child' and 'children'")
+```
+
+
+```{r unigram_plot_people}
+state_text_df_unigram %>% 
+  filter(Bill1gram %in% c('people', 'person')) %>% 
+  group_by(State, Bill.Stance, Bill1gram) %>% 
+  summarize(Token_mean = length(Bill1gram)/n_distinct(State.Link)) %>% 
+  ggplot(aes(y = State, x = Token_mean, fill = Bill.Stance)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Token Frequency: 'person' and 'people'")
+```
+
+
+```{r}
+state_text_df_unigram %>% 
+  filter(Bill1gram %in% c("sex", "gender")) %>% 
+  group_by(State, Bill.Stance, Bill1gram) %>% 
+  summarize(Token_count = length(Bill1gram), Document_count = n_distinct(State.Link), Token_mean = length(Bill1gram)/n_distinct(State.Link))
+```
+
