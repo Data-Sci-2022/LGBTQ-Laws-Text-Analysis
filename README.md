@@ -16,5 +16,5 @@ This research project will analyze pro- and anti-LGBTQ+ legislation from the US 
 * [State-Bill-csvs](/data/State-Bill-csvs) is separated into [Anti](/data/State-Bill-csvs/Anti) and [Pro](/data/State-Bill-csvs/Pro).
 * [BillTrack DF](/data/statetextdf.csv) is a dataframe of BillTrack information, to avoid scraping.
 * [State Text DF](/data/statetextdf.csv) is a dataframe of bill texts, to avoid having to scrape and compile the data.
-* [Data Visualization](/data_visualization) - all graphs generated from my [analysis walkthrough]().
-* [Analysis Walkthrough](./analysis_walkthrough) goes through all the code I used to collection and manipulate my data.
+* [Data Visualization](/data_visualization) - all graphs generated from my [analysis walkthrough](./analysis_walkthrough.Rmd).
+* [Analysis Walkthrough](./analysis_walkthrough.Rmd) goes through all the code I used to collection and manipulate my data.
