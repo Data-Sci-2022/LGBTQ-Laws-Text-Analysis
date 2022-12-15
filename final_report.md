@@ -8,8 +8,8 @@
   There are topical words that occur in both corpora, but their usage differs. These words include ‘gender’, ‘sex’, ‘orientation’, and ‘identity.’ One of the most frequent words for anti LGBTQ+ legislation is ‘education’ which indicates what this legislation is targeting: what topics can be discussed in schools. 
   Both 'sex' and 'gender' had a very small, slightly negative correlation between states and Equaldex index. ‘Sex’ and ‘gender’ were chosen because I believe that they were used differently depending on whether the legislation was pro- or anti-LGBTQ+, additionally the two words were used frequently across both sets of legislation. However, based on these graphs below, it is clear that anti-legislation uses ‘sex’ more than ‘gender’, and pro-legislation uses both to varying degrees. 
 
-!(/data_visualization/unigram-plot-sex-1.png)
-!(/data_visualization/unigram-plot-gender-1.png)
+![](/data_visualization/unigram-plot-sex-1.png)
+![](/data_visualization/unigram-plot-gender-1.png)
 
 My intuition was that anti-legislation would be using ‘sex’ in the context of ‘biological sex.’ This proved to be true to an extent, it was the 14th most common bigram with ‘sex’ in it. However, some of the other bigrams were likely separated by punctuation or are paired with function words, so several of these can be discarded as they are not as indicative of the context of ‘sex’. Other context of ‘sex’ indicates a focus on ‘biological sex,’ both ‘secondary sex characteristics’ and ‘sex hormones’ are frequent contexts. Pro-legislation uses ‘sex’ with other words that is likely a list of categories that are to be protected such as ‘race’, ‘disability’, ‘age’, ‘religion’, and ‘color’.
 	Specific orientations (gay, bisexual, homosexual, heterosexual) were barely included in the texts and were only present in anti-LGBTQ+ legislation. ‘Transgender’ is used more frequently and is only present in anti legislation. When this is considered with the frequency of ‘biological sex’ and other related bigrams, it is clear that these bills are targeting transgender people more than other members of the LGBTQ+ community.
