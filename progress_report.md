@@ -1,4 +1,4 @@
-# Progress Reports for LGBTQ Laws Text Analsysi
+# Progress Reports for LGBTQ Laws Text Analysis
 
 ## Initial Progress Report
 ### 10.11.2022 
