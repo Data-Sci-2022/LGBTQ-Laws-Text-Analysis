@@ -23,4 +23,4 @@ I looked at the equality index for each state as assigned by [Equaldex](https://
 * [License](./LICENSE.md) details how you may use and share the data and code in this repo.
 * [Presentation](./Presentation.pdf) is a copy of the presentation given of this project on December 8, 2022.
 * [Progress Report](./progress_report.md) details progress made on the project through the Fall semester of 2022.
-* [Project Plan](./project_plan.md) is the original project plan. Compare to the end of [final report](./final_report.md) to see changes made.
+* [Project Plan](./project_plan.md) is the original project plan. Compare to the end of the [final report](./final_report.md#process-notes) to see changes made.
