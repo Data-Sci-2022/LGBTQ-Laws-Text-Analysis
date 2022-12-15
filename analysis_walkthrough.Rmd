@@ -1,11 +1,10 @@
 ---
 title: "LGBTQ Laws Text Analysis"
-subtitle: "Data Collection and Wrangling"
 author: "Mack Campbell"
-data: "December 15, 2022"
+date: "December 15, 2022"
 output: 
   github_document:
-  toc: TRUE 
+    toc: TRUE 
 ---
 
 ```{r setup, include=FALSE}

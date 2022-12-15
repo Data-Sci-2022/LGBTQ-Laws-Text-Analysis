@@ -1,6 +1,28 @@
 LGBTQ Laws Text Analysis
 ================
 Mack Campbell
+December 15, 2022
+
+-   <a href="#creating-state-dataframe"
+    id="toc-creating-state-dataframe">Creating State Dataframe</a>
+-   <a href="#web-scraping--data-collection"
+    id="toc-web-scraping--data-collection">Web Scraping / Data
+    Collection</a>
+    -   <a href="#table-scraping-and-manipulation"
+        id="toc-table-scraping-and-manipulation">Table Scraping and
+        Manipulation</a>
+        -   <a href="#equaldex" id="toc-equaldex">Equaldex</a>
+        -   <a href="#map" id="toc-map">MAP</a>
+    -   <a href="#freedom-for-all-americans"
+        id="toc-freedom-for-all-americans">Freedom for All Americans</a>
+    -   <a href="#billtrack50" id="toc-billtrack50">BillTrack50</a>
+-   <a href="#working-with-pdfs" id="toc-working-with-pdfs">Working with
+    PDFs</a>
+-   <a href="#text-analysis" id="toc-text-analysis">Text Analysis</a>
+    -   <a href="#tokenization" id="toc-tokenization">Tokenization</a>
+-   <a href="#correlation" id="toc-correlation">Correlation</a>
+-   <a href="#unigram-data-visualization"
+    id="toc-unigram-data-visualization">Unigram Data Visualization</a>
 
 # Creating State Dataframe
 
